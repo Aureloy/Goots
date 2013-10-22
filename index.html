@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="js/jquery-2.0.3.min.js"></script>
+    <script src="js/map2.js"></script>
+	<style>
+		body,html
+		{
+			background:#000000;
+			margin:0;
+			padding:0;
+			text-align:center;
+			height:100%;
+		}
+		
+		#map
+		{
+			margin:50px auto;
+			width:1000px;
+			height:500px;
+			border:10px solid #666;
+		}
+	</style>
+</head>
+<body onLoad="init();">
+    <canvas id="map" width="1000" height="500">
+        Vous devez utiliser un navigateur compatible CANVAS
+    </canvas>
+	<br>
+	<button id="generateMap">Générer une map</button>
+	<button id="storeMap">Enregistrer une map</button>
+	<button id="loadMap">Charger une map</button>
+	<button id="eraseMap">Effacer une map</button>
+</body>
+</html>
