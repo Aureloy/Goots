@@ -1,7 +1,7 @@
 materials = {
 
-	grass : {
-		
+	grass : 
+	{
 		avgHeight: 50
 		,minOffset : 10
 		,maxOffset : 10
@@ -106,7 +106,17 @@ function init()
 		delete localStorage.map;
 		alert('Map effacée de la mémoire');
 	});
+	
+	$('#toPNG').click(function()
+	{
+		element = document.getElementById("map");
+		var d=element.toDataURL("image/png");
+		$('#imgZone').attr('src',d);
+	});
+	
+
 }
+
 
 function setPixel(imageData, x, y, rgba) 
 {

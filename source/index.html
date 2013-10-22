@@ -15,21 +15,26 @@
 		
 		#map
 		{
-			margin:50px auto;
-			width:1000px;
-			height:500px;
+			margin:30px auto;
+			border:10px solid #666;
+		}
+		
+		#imgZone
+		{
+			margin:30px auto;
 			border:10px solid #666;
 		}
 	</style>
 </head>
 <body onLoad="init();">
-    <canvas id="map" width="1000" height="500">
-        Vous devez utiliser un navigateur compatible CANVAS
-    </canvas>
+    <canvas id="map" width="1000" height="700"><!-- Alternate content --></canvas>
 	<br>
 	<button id="generateMap">Générer une map</button>
-	<button id="storeMap">Enregistrer une map</button>
-	<button id="loadMap">Charger une map</button>
-	<button id="eraseMap">Effacer une map</button>
+	<button id="storeMap">Enregistrer une map en LocalStorage</button>
+	<button id="loadMap">Charger une map en LocalStorage</button>
+	<button id="eraseMap">Vider le LocalStorage</button>
+	<button id="toPNG">Exporter le PNG de la map affichée</button>
+	<br>
+	<img id="imgZone" src="img/goots.jpg">
 </body>
 </html>
