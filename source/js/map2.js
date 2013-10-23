@@ -2,12 +2,13 @@ materials = {
 
 	grass : 
 	{
-		avgHeight: 50
-		,minOffset : 10
-		,maxOffset : 10
+		thickness: 200
+		,minOffset : 150
+		,maxOffset : 250
 		
 		,height_variation_factor : 10
-		,mountain_factor : 15
+		,plateau_factor : 15
+		,smoothness : 0.2
 		
 		,noise_factor : 0.3
 		,noise_height : 1
@@ -19,16 +20,17 @@ materials = {
 	
 	,mud : 
 	{
-		avgHeight: 60
-		,minOffset : 15
-		,maxOffset : 20
+		thickness: 25
+		,minOffset : 20
+		,maxOffset : 30
 		
-		,height_variation_factor : 5
-		,mountain_factor : 5
+		,height_variation_factor : 3
+		,plateau_factor : 1
+		,smoothness : 0.3
 		
 		,previousMaterial : "grass"
 
-		,noise_factor : 0.7
+		,noise_factor : 0.1
 		,noise_height : 1
 		
 		,rgb : { r: 150, g : 75, b : 0}
@@ -36,12 +38,13 @@ materials = {
 	
 	,dirt : 
 	{
-		avgHeight: 130
+		thickness: 50
 		,minOffset : 45
 		,maxOffset : 100
 		
 		,height_variation_factor : 10
-		,mountain_factor : 5
+		,plateau_factor : 10
+		,smoothness : 0.8
 		
 		,previousMaterial : "mud"
 		
@@ -52,19 +55,54 @@ materials = {
 	}
 	,stone :
 	{
-		avgHeight: 999
+		thickness: 120
+		,minOffset : 50
+		,maxOffset : 50
+		
+		,height_variation_factor : 8
+		,plateau_factor : 5
+		,smoothness : 0
+		
+		,previousMaterial : "dirt"
+		
+		,noise_factor : 0.7
+		,noise_height : 1
+		
+		,rgb : { r: 50, g : 25, b : 25}
+	}
+	,darkstone :
+	{
+		thickness: 250
+		,minOffset : 0
+		,maxOffset : 0
+		
+		,height_variation_factor : 15
+		,plateau_factor : 1
+		,smoothness : 0
+		
+		,previousMaterial : "stone"
+		
+		,noise_factor : 1
+		,noise_height : 2
+		
+		,rgb : { r: 25, g : 10, b : 10}
+	}
+	,granit :
+	{
+		thickness: 1200
 		,minOffset : 0
 		,maxOffset : 0
 		
 		,height_variation_factor : 0
-		,mountain_factor : 0
+		,plateau_factor : 0
+		,smoothness : 0
 		
-		,previousMaterial : "dirt"
+		,previousMaterial : "darkstone"
 		
 		,noise_factor : 0
 		,noise_height : 0
 		
-		,rgb : { r: 50, g : 25, b : 25}
+		,rgb : { r: 10, g : 5, b : 5}
 	}
 };
 
@@ -161,43 +199,50 @@ function map()
 	mapBinary = new Object();
 	newHeight = new Object();
 	previousHeight = new Object();
+	oldMdh  = new Object();
 	
 	for(m in materials)
 	{
 		mat = materials[m];
-		newHeight[m] = mat.avgHeight
+		newHeight[m] = mat.thickness
 			+ Math.round( Math.random() * mat.height_variation_factor )
 			* ( Math.random() > 0.5 ? 1 : - 1 );
 	}
 		
-	for(i = 0; i < width; i++)
+	for(x = 0; x < width; x++)
 	{
-		mapBinary[i] = new Array();
+		mapBinary[x] = new Array();
 		
 		for(m in materials)
 		{
 			mat = materials[m];
-			newHeight[m] += Math.floor(Math.pow( Math.random(), mat.mountain_factor) * mat.height_variation_factor) 
-				* ( newHeight[m] < ( mat.avgHeight - mat.minOffset ) ? 1 : ( newHeight[m] > ( mat.avgHeight + mat.maxOffset ) ? - 1 : (Math.random() > 0.5 ? 1 : - 1 ) ) )
-				+ ( Math.random() < mat.noise_factor ? (Math.random() > 0.5 ? 1 : - 1 ) * mat.noise_height : 0 );
-		}
-		for(m in materials)
-		{
 			previousHeight[m] = getPreviousMaterialsHeight(m, newHeight);
+			 
+			if(mat.smoothness == 0 || Math.random() > mat.smoothness || oldMdh[m] == undefined )
+			{
+				newHeight[m] += Math.floor(Math.pow( Math.random(), mat.plateau_factor) * mat.height_variation_factor) 
+					* ( newHeight[m] < ( mat.thickness - mat.minOffset ) ? 1 : ( newHeight[m] > ( mat.thickness + mat.maxOffset ) ? - 1 : (Math.random() > 0.5 ? 1 : - 1 ) ) )
+					+ ( Math.random() < mat.noise_factor ? (Math.random() > 0.5 ? 1 : - 1 ) * mat.noise_height : 0 );
+			}
+			else
+			{
+				diff = previousHeight[m] - oldMdh[m];
+				newHeight[m] = newHeight[m] - diff;
+			}
 		}
 		
-		for(j = 0; j < height; j++)
+		for(y = 0; y < height; y++)
 		{
 			for(m in materials)
 			{
-				previousMaterialHeight = previousHeight[m];
-				
-				if( previousMaterialHeight == 0 && j < newHeight[m] || 
-					j <= previousMaterialHeight ||
-					j > ( newHeight[m] + previousMaterialHeight ) ) continue;
-				
-				mapBinary[i][j] = m;
-				break;
+					oldMdh[m] = previousMaterialHeight = previousHeight[m];
+					
+					if(  previousMaterialHeight == 0 && y < newHeight[m] ||
+							y <= previousMaterialHeight ||
+							y > ( newHeight[m] + previousMaterialHeight ) ) continue;
+					
+					mapBinary[x][y] = m;
+					break;
 			}
 		}
 	}
