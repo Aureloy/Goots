@@ -113,14 +113,22 @@ function init()
 	element = document.getElementById("map");
 	c = element.getContext("2d");
 
-	width = element.width;
-	height = element.height;
+	mapWidth = element.width;
+	mapHeight = element.height;
 	
 	
 	$('#storeMap').click(function(){
 
-		alert('Map enregistrée');
-		localStorage.map = JSON.stringify(mapBinary);
+		try 
+		{
+			localStorage.map = JSON.stringify(mapBinary);
+			alert('Map enregistrée');
+		}
+		catch (e) 
+		{
+			delete localStorage.map;
+			alert('Map non enregistrée : dépassement de mémoire');
+		}
 	});
 
 
@@ -132,12 +140,12 @@ function init()
 			return false;
 			
 		}
-		mapBinary = JSON.parse(localStorage.map); // TODO : choisir une façon de sauvegarder la map. Localstorage = string
+		mapBinary = JSON.parse(localStorage.map);
 		drawMap();
 	});
 
 	$('#generateMap').click(function(){
-		map();
+		generateMap();
 	});
 
 	$('#eraseMap').click(function(){
@@ -152,10 +160,134 @@ function init()
 		$('#imgZone').attr('src',d);
 	});
 	
-
 }
 
 
+
+function generateMap()
+{
+	// instanciation des variables de fonctionnement 
+	
+	mapBinary = new Object();
+	newMaterialsHeight = new Object();
+	parentMaterialsHeight = new Object();
+	oldMaterialsHeight  = new Object();
+	
+	// définition de la hauteur initiale de chaque materiau ( colonne de gauche )
+	generateMaterialInitHeight();
+	
+	// pour chaque colonne	
+	for(x = 0; x < mapWidth; x++)
+	{
+		mapBinary[x] = new Array();
+		
+		// calcul de la hauteur des différents matériaux
+		generateMaterialsHeight();
+		
+		// pour chaque case de la colonne
+		for(y = 0; y < mapHeight; y++)
+		{
+			// on attribue le matériau à chaque pixel en fonction de la hauteur des différents materiaux calculés
+			setColumnMaterial(y);
+		}
+	}
+	
+	// une fois la map générée, on la dessine
+	drawMap();
+}
+
+// calcule la hauteur initiale des matériaux sur la 1ere colonne
+function generateMaterialInitHeight()
+{
+	for(m in materials)
+	{
+		mat = materials[m];
+		
+		newMaterialsHeight[m] = mat.thickness
+			+ Math.round( Math.random() * mat.height_variation_factor )
+			* ( Math.random() > 0.5 ? 1 : - 1 );
+	}
+}
+
+// calcule la hauteur des différentes couches de matériaux sur une colonne
+function generateMaterialsHeight()
+{
+	// pour chaque matériaux
+	for(m in materials)
+	{
+		mat = materials[m];
+		
+		// on récupère la hauteur précédente afin de garder une continuité dans le paysage
+		parentMaterialsHeight[m] = getParentMaterialsHeight(m, newMaterialsHeight);
+		 
+		// si le materiau doit changer de taille
+		if(mat.smoothness == 0 || Math.random() > mat.smoothness || oldMaterialsHeight[m] == undefined )
+		{
+			// on génère une nouvelle hauteur	// en fonction de la variation
+			newMaterialsHeight[m] += Math.floor(Math.pow( Math.random(), mat.plateau_factor) * mat.height_variation_factor) 
+				// on vérifie qu'elle de sorte pas du cadre de restriction
+				* ( newMaterialsHeight[m] < ( mat.thickness - mat.minOffset ) ? 1 : ( newMaterialsHeight[m] > ( mat.thickness + mat.maxOffset ) ? - 1 : (Math.random() > 0.5 ? 1 : - 1 ) ) )
+				// et ajoute du bruit pour la variation
+				+ ( Math.random() < mat.noise_factor ? (Math.random() > 0.5 ? 1 : - 1 ) * mat.noise_height : 0 );
+		}
+		else
+		{
+			// sinon le matériau reste à la même hauteur que précédemment, avec la contrainte de respet du matériau parent.
+			newMaterialsHeight[m] -= parentMaterialsHeight[m] - oldMaterialsHeight[m];
+		}
+	}
+}
+
+
+
+// fonction récursive qui retourne la hauteur des matériaux parents 
+function getParentMaterialsHeight(m, newMaterialsHeight)
+{
+	return ( materials[m].previousMaterial != false ? newMaterialsHeight[materials[m].previousMaterial] + getParentMaterialsHeight(materials[m].previousMaterial, newMaterialsHeight) : 0 );
+}
+
+
+// fonction qui alloue tous les pixels d'une colonne en fonction des matériaux calculés
+function setColumnMaterial(y)
+{
+	for(m in materials)
+	{
+		oldMaterialsHeight[m] = thisMaterialHeight = parentMaterialsHeight[m];
+		
+		// TODO : bug de l'herbe qui n'est pas écrasée par le 2eme matériau.
+		if(  thisMaterialHeight == 0 && y < newMaterialsHeight[m] || y <= thisMaterialHeight ||	y > ( newMaterialsHeight[m] + thisMaterialHeight ) ) continue;
+		
+		mapBinary[x][y] = m;
+		break;
+	}
+}
+
+// dessine la map sur le canvas
+function drawMap()
+{
+	// instanciation de la zone de dessin
+	imageData = c.createImageData(mapWidth, mapHeight);
+
+	// effacement des pixels 
+	c.clearRect(0,0,mapWidth,mapHeight);
+	 
+	// pour chaque colonne 
+	for(i = 0; i < mapWidth; i++)
+	{	
+		// pour chaque ligne 
+		for(j = 0; j < mapHeight; j++)
+		{
+			// si un materiaux existe, il est dessiné 
+			if(mapBinary[i][j] != undefined) setPixel(imageData, i, j, materials[ mapBinary[i][j] ].rgb);
+		}
+	}
+	
+	// ajout de l'image à la scene
+	c.putImageData(imageData, 0, 0);
+}
+
+
+// fonction d'attribution d'un code couleur à un pixel
 function setPixel(imageData, x, y, rgba) 
 {
     index = (x + y * imageData.width) * 4;
@@ -165,88 +297,4 @@ function setPixel(imageData, x, y, rgba)
     imageData.data[index+3] =  ( rgba.a == undefined ? 255 : rgba.a );
 }
 
-
-function getPreviousMaterialsHeight(m, newHeight)
-{
-	return ( materials[m].previousMaterial != false ? newHeight[materials[m].previousMaterial] + getPreviousMaterialsHeight(materials[m].previousMaterial, newHeight) : 0 );
-}
-
-
-
-function drawMap()
-{
-	
-	imageData = c.createImageData(width, height);
-
-	c.clearRect(0,0,width,height);
-	 
-	for(i = 0; i < width; i++)
-	{	
-		for(j = 0; j < height; j++)
-		{
-			if(mapBinary[i][j] != undefined) setPixel(imageData, i, j, materials[ mapBinary[i][j] ].rgb);
-		}
-	}
-	
-	c.putImageData(imageData, 0, 0);
-}
-
-
-var mapBinary = false;
-
-function map()
-{
-	mapBinary = new Object();
-	newHeight = new Object();
-	previousHeight = new Object();
-	oldMdh  = new Object();
-	
-	for(m in materials)
-	{
-		mat = materials[m];
-		newHeight[m] = mat.thickness
-			+ Math.round( Math.random() * mat.height_variation_factor )
-			* ( Math.random() > 0.5 ? 1 : - 1 );
-	}
-		
-	for(x = 0; x < width; x++)
-	{
-		mapBinary[x] = new Array();
-		
-		for(m in materials)
-		{
-			mat = materials[m];
-			previousHeight[m] = getPreviousMaterialsHeight(m, newHeight);
-			 
-			if(mat.smoothness == 0 || Math.random() > mat.smoothness || oldMdh[m] == undefined )
-			{
-				newHeight[m] += Math.floor(Math.pow( Math.random(), mat.plateau_factor) * mat.height_variation_factor) 
-					* ( newHeight[m] < ( mat.thickness - mat.minOffset ) ? 1 : ( newHeight[m] > ( mat.thickness + mat.maxOffset ) ? - 1 : (Math.random() > 0.5 ? 1 : - 1 ) ) )
-					+ ( Math.random() < mat.noise_factor ? (Math.random() > 0.5 ? 1 : - 1 ) * mat.noise_height : 0 );
-			}
-			else
-			{
-				diff = previousHeight[m] - oldMdh[m];
-				newHeight[m] = newHeight[m] - diff;
-			}
-		}
-		
-		for(y = 0; y < height; y++)
-		{
-			for(m in materials)
-			{
-					oldMdh[m] = previousMaterialHeight = previousHeight[m];
-					
-					if(  previousMaterialHeight == 0 && y < newHeight[m] ||
-							y <= previousMaterialHeight ||
-							y > ( newHeight[m] + previousMaterialHeight ) ) continue;
-					
-					mapBinary[x][y] = m;
-					break;
-			}
-		}
-	}
-	
-	drawMap();
-}
 
