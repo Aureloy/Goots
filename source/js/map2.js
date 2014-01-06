@@ -16,6 +16,12 @@ materials = {
 		,rgb : { r: 0, g : 150, b : 0}
 		
 		,previousMaterial : false
+		
+		,lodes : {
+			size : 0
+			,amountPercent : 0
+			,spreadOffset : 0
+		}
 	}
 	
 	,mud : 
@@ -34,6 +40,12 @@ materials = {
 		,noise_height : 1
 		
 		,rgb : { r: 150, g : 75, b : 0}
+		
+		,lodes : {
+			size : 20
+			,amountPercent : 0.03
+			,spreadOffset : 100
+		}
 	}
 	
 	,dirt : 
@@ -52,6 +64,12 @@ materials = {
 		,noise_height : 1
 		
 		,rgb : { r: 75, g : 50, b : 50}
+		
+		,lodes : {
+			size : 15
+			,amountPercent : 0.05
+			,spreadOffset : 150
+		}
 	}
 	,stone :
 	{
@@ -69,6 +87,12 @@ materials = {
 		,noise_height : 1
 		
 		,rgb : { r: 50, g : 25, b : 25}
+		
+		,lodes : {
+			size : 25
+			,amountPercent : 0.15
+			,spreadOffset : 200
+		}
 	}
 	,darkstone :
 	{
@@ -86,6 +110,12 @@ materials = {
 		,noise_height : 2
 		
 		,rgb : { r: 25, g : 10, b : 10}
+		
+		,lodes : {
+			size : 20
+			,amountPercent : 0.06
+			,spreadOffset : 250
+		}
 	}
 	,granit :
 	{
@@ -103,6 +133,12 @@ materials = {
 		,noise_height : 0
 		
 		,rgb : { r: 10, g : 5, b : 5}
+		
+		,lodes : {
+			size : 20
+			,amountPercent : 0.05
+			,spreadOffset : 500
+		}
 	}
 };
 
@@ -169,9 +205,10 @@ function generateMap()
 	// instanciation des variables de fonctionnement 
 	
 	mapBinary = new Object();
+	initialMaterialsHeight = new Object();
 	newMaterialsHeight = new Object();
 	parentMaterialsHeight = new Object();
-	oldMaterialsHeight  = new Object();
+	oldParentMaterialsHeight  = new Object();
 	
 	// définition de la hauteur initiale de chaque materiau ( colonne de gauche )
 	generateMaterialInitHeight();
@@ -184,16 +221,23 @@ function generateMap()
 		// calcul de la hauteur des différents matériaux
 		generateMaterialsHeight();
 		
-		// pour chaque case de la colonne
-		for(y = 0; y < mapHeight; y++)
-		{
-			// on attribue le matériau à chaque pixel en fonction de la hauteur des différents materiaux calculés
-			setColumnMaterial(y);
-		}
+		// on place dans un buffer la hauteur calculée, pour la prochaine itération
+		oldParentMaterialsHeight = parentMaterialsHeight;
+		
+		// on attribue le matériau à chaque pixel en fonction de la hauteur des différents materiaux calculés
+		setColumnMaterial(x);
 	}
+	
+	
+	
+	// 2eme itération : veines de matériaux
+	generateLodes();
 	
 	// une fois la map générée, on la dessine
 	drawMap();
+	
+	
+	getStats();
 }
 
 // calcule la hauteur initiale des matériaux sur la 1ere colonne
@@ -203,7 +247,7 @@ function generateMaterialInitHeight()
 	{
 		mat = materials[m];
 		
-		newMaterialsHeight[m] = mat.thickness
+		initialMaterialsHeight[m] = newMaterialsHeight[m] = mat.thickness
 			+ Math.round( Math.random() * mat.height_variation_factor )
 			* ( Math.random() > 0.5 ? 1 : - 1 );
 	}
@@ -221,7 +265,7 @@ function generateMaterialsHeight()
 		parentMaterialsHeight[m] = getParentMaterialsHeight(m, newMaterialsHeight);
 		 
 		// si le materiau doit changer de taille
-		if(mat.smoothness == 0 || Math.random() > mat.smoothness || oldMaterialsHeight[m] == undefined )
+		if(mat.smoothness == 0 || Math.random() > mat.smoothness || oldParentMaterialsHeight[m] == undefined )
 		{
 			// on génère une nouvelle hauteur	// en fonction de la variation
 			newMaterialsHeight[m] += Math.floor(Math.pow( Math.random(), mat.plateau_factor) * mat.height_variation_factor) 
@@ -233,7 +277,7 @@ function generateMaterialsHeight()
 		else
 		{
 			// sinon le matériau reste à la même hauteur que précédemment, avec la contrainte de respet du matériau parent.
-			newMaterialsHeight[m] -= parentMaterialsHeight[m] - oldMaterialsHeight[m];
+			newMaterialsHeight[m] -= parentMaterialsHeight[m] - oldParentMaterialsHeight[m];
 		}
 	}
 }
@@ -248,19 +292,131 @@ function getParentMaterialsHeight(m, newMaterialsHeight)
 
 
 // fonction qui alloue tous les pixels d'une colonne en fonction des matériaux calculés
-function setColumnMaterial(y)
+function setColumnMaterial(x)
 {
 	for(m in materials)
 	{
-		oldMaterialsHeight[m] = thisMaterialHeight = parentMaterialsHeight[m];
+		// point de départ : si pas de matériau parent, on démarre à la hauteur du materiau, sinon on rempli depuis le parent + 1
+		var startPoint = ( oldParentMaterialsHeight[m] == 0 ? newMaterialsHeight[m] : oldParentMaterialsHeight[m] + 1) ;
+		// point d'arrivée : le minimum entre la hauteur calculée et les limite de la map
+		var endPoint = Math.min( newMaterialsHeight[m] + oldParentMaterialsHeight[m], mapHeight );
 		
-		// TODO : bug de l'herbe qui n'est pas écrasée par le 2eme matériau.
-		if(  thisMaterialHeight == 0 && y < newMaterialsHeight[m] || y <= thisMaterialHeight ||	y > ( newMaterialsHeight[m] + thisMaterialHeight ) ) continue;
-		
-		mapBinary[x][y] = m;
-		break;
+		for(y = startPoint; y <= endPoint; y++)
+		{
+			mapBinary[x][y] = m;
+		}
 	}
 }
+
+
+
+
+
+// fonction qui dessine des poches de matériaux 
+
+function generateLodes()
+{
+	// pour chaque materiau
+	for(m in materials)
+	{
+		// on détermine le nombre de veines à placer sur la map
+		var lodeNumber = materials[m].lodes.amountPercent * mapHeight;
+		if(!lodeNumber) continue;
+		
+		// on détermine la hauteur moyenne du materiau
+		var averageY = getParentMaterialsHeight(m, initialMaterialsHeight);
+		
+		// pour chaque veine
+		for(i = 0; i <= lodeNumber; i++)
+		{
+			// on détermine une position de départ en fonction de la largeur de la map
+			lodeX = Math.round(Math.random() * mapWidth + 1);
+			// on détermine une position de départ en fonction de la hauteur de la couche et du coefficient de spread
+			lodeY = averageY + (Math.random() > 0.2 ? 1 : -1 ) * Math.round( Math.random() * materials[m].lodes.spreadOffset / 2 + 1);
+			
+			// algo a déterminer pour faire une poche réaliste
+			lineLengthX = new Array();
+			lineLengthY = new Array();
+			
+			squareSize = Math.round(materials[m].lodes.size/2);
+			
+			for(iX = -squareSize; iX <= squareSize; iX++)
+			{
+				lineLengthX[iX] = Math.round(Math.random() * squareSize + 1);
+			}
+			
+			for(iY = -squareSize; iY <= squareSize; iY++)
+			{
+				lineLengthY[iY] = Math.round(Math.random() * squareSize + 1);
+			}
+			
+			for(iX = -squareSize; iX <= squareSize; iX++)
+			{
+				for(iY = -squareSize; iY <= squareSize; iY++)
+				{
+					// algo a déterminer
+					// if(Math.abs(iX) > lineLengthX[iX] || Math.abs(iY) > Math.abs(lineLengthY[iY]))
+					// {
+						// continue;
+					// }
+					
+					// out of bounds
+					if(mapBinary[lodeX + iX] == undefined)
+					{
+						continue;
+					}
+					
+					// out of bounds ou dans le ciel
+					if(mapBinary[lodeX + iX][lodeY + iY] == undefined)
+					{
+						continue;
+					}
+					
+					// ne fonctionne pas !! //
+					if(mapBinary[lodeX + iX][lodeY + iY] == "grass")
+					{
+						continue;
+					}
+					
+					mapBinary[lodeX + iX][lodeY + iY] = m;
+				}
+			}
+			
+		}
+		
+		// on détermine une matrice plus ou moins large en fonction du parametre size
+		
+	}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // dessine la map sur le canvas
 function drawMap()
@@ -295,6 +451,57 @@ function setPixel(imageData, x, y, rgba)
     imageData.data[index+1] = rgba.g;
     imageData.data[index+2] = rgba.b;
     imageData.data[index+3] =  ( rgba.a == undefined ? 255 : rgba.a );
+}
+
+
+function componentToHex(c) {
+    var hex = c.toString(16);
+    return hex.length == 1 ? "0" + hex : hex;
+}
+
+function rgbToHex(r, g, b) {
+    return "#" + componentToHex(r) + componentToHex(g) + componentToHex(b);
+}
+
+
+function getStats()
+{
+	var stats = {};
+	for(m in materials)
+	{
+		stats[m] = 0;
+	}
+	
+	for(x in mapBinary)
+	{
+		for(y in mapBinary[x])
+		{
+			if(mapBinary[x][y] != undefined) stats[mapBinary[x][y]]++;
+		}
+	}
+	
+	c.font      = "bold 10px Verdana";
+	c.fillStyle = "#FFFFFF";
+	
+	var lineHeight = 12;
+	var offset = 0;
+	for(m in stats)
+	{
+		c.strokeStyle = "#FFFFFF";
+		c.lineWidth = "10";
+		c.strokeText(m + ' : ' + Math.round(stats[m] / 10) / 100 + 'k', 5, 10 + lineHeight*offset);
+		offset++;
+	}
+	
+	offset = 0;
+	for(m in stats)
+	{
+		c.fillStyle = rgbToHex( materials[m].rgb.r, materials[m].rgb.g, materials[m].rgb.b);
+		c.fillText(m + ' : ' + Math.round(stats[m] / 10) / 100 + 'k', 5, 10 + lineHeight*offset);
+		offset++;
+	}
+	
+	
 }
 
 
