@@ -2,7 +2,8 @@
 <html>
 <head>
     <script src="js/jquery-2.0.3.min.js"></script>
-    <script src="js/map2.js"></script>
+    <script src="js/mapGenerator.js"></script>
+    <script src="js/perlin.js"></script>
 	<style>
 		body,html
 		{
@@ -17,6 +18,16 @@
 		{
 			margin:30px auto;
 			border:10px solid #666;
+			
+			background: #050233; /* Old browsers */
+background: -moz-linear-gradient(top, #050233 0%, #60adff 15%, #a3c7e2 24%, #303972 35%, #2b1616 100%); /* FF3.6+ */
+background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#050233), color-stop(15%,#60adff), color-stop(24%,#a3c7e2), color-stop(35%,#303972), color-stop(100%,#2b1616)); /* Chrome,Safari4+ */
+background: -webkit-linear-gradient(top, #050233 0%,#60adff 15%,#a3c7e2 24%,#303972 35%,#2b1616 100%); /* Chrome10+,Safari5.1+ */
+background: -o-linear-gradient(top, #050233 0%,#60adff 15%,#a3c7e2 24%,#303972 35%,#2b1616 100%); /* Opera 11.10+ */
+background: -ms-linear-gradient(top, #050233 0%,#60adff 15%,#a3c7e2 24%,#303972 35%,#2b1616 100%); /* IE10+ */
+background: linear-gradient(to bottom, #050233 0%,#60adff 15%,#a3c7e2 24%,#303972 35%,#2b1616 100%); /* W3C */
+filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#050233', endColorstr='#2b1616',GradientType=0 ); /* IE6-9 */
+
 		}
 		
 		#imgZone

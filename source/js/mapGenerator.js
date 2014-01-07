@@ -43,7 +43,7 @@ materials = {
 		
 		,lodes : {
 			size : 20
-			,amountPercent : 0.03
+			,amountPercent : 0.3
 			,spreadOffset : 100
 		}
 	}
@@ -67,7 +67,7 @@ materials = {
 		
 		,lodes : {
 			size : 15
-			,amountPercent : 0.05
+			,amountPercent : 0.5
 			,spreadOffset : 150
 		}
 	}
@@ -90,7 +90,7 @@ materials = {
 		
 		,lodes : {
 			size : 25
-			,amountPercent : 0.15
+			,amountPercent : 1
 			,spreadOffset : 200
 		}
 	}
@@ -100,20 +100,20 @@ materials = {
 		,minOffset : 0
 		,maxOffset : 0
 		
-		,height_variation_factor : 15
+		,height_variation_factor : 5
 		,plateau_factor : 1
-		,smoothness : 0
+		,smoothness : 0.5
 		
 		,previousMaterial : "stone"
 		
-		,noise_factor : 1
-		,noise_height : 2
+		,noise_factor : 0.5
+		,noise_height : 1
 		
 		,rgb : { r: 25, g : 10, b : 10}
 		
 		,lodes : {
 			size : 20
-			,amountPercent : 0.06
+			,amountPercent : 0.6
 			,spreadOffset : 250
 		}
 	}
@@ -132,12 +132,12 @@ materials = {
 		,noise_factor : 0
 		,noise_height : 0
 		
-		,rgb : { r: 10, g : 5, b : 5}
+		,rgb : { r: 5, g : 5, b : 5}
 		
 		,lodes : {
-			size : 20
-			,amountPercent : 0.05
-			,spreadOffset : 500
+			size : 30
+			,amountPercent : 0.8
+			,spreadOffset : 400
 		}
 	}
 };
@@ -202,6 +202,9 @@ function init()
 
 function generateMap()
 {
+
+	var start = Date.now();
+
 	// instanciation des variables de fonctionnement 
 	
 	mapBinary = new Object();
@@ -233,11 +236,15 @@ function generateMap()
 	// 2eme itération : veines de matériaux
 	generateLodes();
 	
+	// 3eme itération : caves
+	generateCaves();
+	
 	// une fois la map générée, on la dessine
 	drawMap();
 	
-	
-	getStats();
+	var end = Date.now();
+
+	getStats(end - start);
 }
 
 // calcule la hauteur initiale des matériaux sur la 1ere colonne
@@ -320,7 +327,7 @@ function generateLodes()
 	for(m in materials)
 	{
 		// on détermine le nombre de veines à placer sur la map
-		var lodeNumber = materials[m].lodes.amountPercent * mapHeight;
+		var lodeNumber = Math.round(materials[m].lodes.amountPercent * mapHeight);
 		if(!lodeNumber) continue;
 		
 		// on détermine la hauteur moyenne du materiau
@@ -335,31 +342,20 @@ function generateLodes()
 			lodeY = averageY + (Math.random() > 0.2 ? 1 : -1 ) * Math.round( Math.random() * materials[m].lodes.spreadOffset / 2 + 1);
 			
 			// algo a déterminer pour faire une poche réaliste
-			lineLengthX = new Array();
-			lineLengthY = new Array();
+			// lineLengthX = new Array();
+			// lineLengthY = new Array();
 			
-			squareSize = Math.round(materials[m].lodes.size/2);
-			
-			for(iX = -squareSize; iX <= squareSize; iX++)
-			{
-				lineLengthX[iX] = Math.round(Math.random() * squareSize + 1);
-			}
-			
-			for(iY = -squareSize; iY <= squareSize; iY++)
-			{
-				lineLengthY[iY] = Math.round(Math.random() * squareSize + 1);
-			}
+			squareSize = Math.round(materials[m].lodes.size);
 			
 			for(iX = -squareSize; iX <= squareSize; iX++)
 			{
+				if (iX % mapWidth  == 0) 
+				{
+					noise.seed(Math.random());
+				}
+				
 				for(iY = -squareSize; iY <= squareSize; iY++)
 				{
-					// algo a déterminer
-					// if(Math.abs(iX) > lineLengthX[iX] || Math.abs(iY) > Math.abs(lineLengthY[iY]))
-					// {
-						// continue;
-					// }
-					
 					// out of bounds
 					if(mapBinary[lodeX + iX] == undefined)
 					{
@@ -372,36 +368,59 @@ function generateLodes()
 						continue;
 					}
 					
-					// ne fonctionne pas !! //
+					// on force une couche de végétation en haut //
 					if(mapBinary[lodeX + iX][lodeY + iY] == "grass")
 					{
 						continue;
 					}
 					
+					var active = Math.abs(noise.perlin2(iX / 20, iY / 20 ));
+					active = (active > 0.50 ? 1 : 0);
+					
+					if(!active)
+					{
+						continue;
+					};
+					
 					mapBinary[lodeX + iX][lodeY + iY] = m;
 				}
 			}
-			
 		}
-		
-		// on détermine une matrice plus ou moins large en fonction du parametre size
-		
 	}
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+function generateCaves()
+{
+	noise.seed(Math.random());
+	for (var x = 0; x < mapWidth; x++) 
+	{
+		for (var y = 0; y < mapHeight; y++) 
+		{
+			if(mapBinary[x][y] == undefined) continue;
+			
+			var value = Math.abs(noise.perlin2(x / 20, y / 20 ));
+			
+			var offset =  (y-100) / 700 * 0.20;
+			offset = Math.min(0.20,offset);
+			offset = Math.max(0,offset);
+			value = (value < offset ? 1 : 0);
+			
+			
+			var offset =   (y-400) / 500  * 0.15 + 0.15;
+			offset = Math.min(0.30,offset);
+			offset = Math.max(0.15,offset);
+			
+			
+			var value2 = Math.abs(noise.perlin2(y / 50, x / 50 ));
+			value2 = (value2 >= offset ? 1 : 0);
+			
+			
+			var value_final = value && value2;
+			
+			if(value_final) delete mapBinary[x][y];
+		}
+	}
+}
 
 
 
@@ -464,7 +483,7 @@ function rgbToHex(r, g, b) {
 }
 
 
-function getStats()
+function getStats(renderTime)
 {
 	var stats = {};
 	for(m in materials)
@@ -482,16 +501,18 @@ function getStats()
 	
 	c.font      = "bold 10px Verdana";
 	c.fillStyle = "#FFFFFF";
+	c.lineWidth = "10";
+	c.strokeStyle = "#FFFFFF";
 	
 	var lineHeight = 12;
 	var offset = 0;
+
 	for(m in stats)
 	{
-		c.strokeStyle = "#FFFFFF";
-		c.lineWidth = "10";
 		c.strokeText(m + ' : ' + Math.round(stats[m] / 10) / 100 + 'k', 5, 10 + lineHeight*offset);
 		offset++;
 	}
+	c.strokeText(renderTime + 'ms', 5, 10 + lineHeight*offset);
 	
 	offset = 0;
 	for(m in stats)
@@ -500,7 +521,7 @@ function getStats()
 		c.fillText(m + ' : ' + Math.round(stats[m] / 10) / 100 + 'k', 5, 10 + lineHeight*offset);
 		offset++;
 	}
-	
+	c.fillText(renderTime + 'ms', 5, 10 + lineHeight*offset);
 	
 }
 
