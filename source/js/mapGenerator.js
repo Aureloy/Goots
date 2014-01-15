@@ -1,12 +1,13 @@
 materials = {
 
-	grass : 
+	1 : 
 	{
-		thickness: 200
-		,minOffset : 150
-		,maxOffset : 250
+		name : 'grass'
+		,thickness: 200
+		,minOffset : 170
+		,maxOffset : 200
 		
-		,height_variation_factor : 10
+		,height_variation_factor : 6
 		,plateau_factor : 15
 		,smoothness : 0.2
 		
@@ -15,7 +16,7 @@ materials = {
 		
 		,rgb : { r: 0, g : 150, b : 0}
 		
-		,previousMaterial : false
+		,dependency : false
 		
 		,lodes : {
 			size : 0
@@ -24,9 +25,10 @@ materials = {
 		}
 	}
 	
-	,mud : 
+	,2 : 
 	{
-		thickness: 25
+		name : 'mud'
+		,thickness: 25
 		,minOffset : 20
 		,maxOffset : 30
 		
@@ -34,7 +36,7 @@ materials = {
 		,plateau_factor : 1
 		,smoothness : 0.3
 		
-		,previousMaterial : "grass"
+		,dependency : 1
 
 		,noise_factor : 0.1
 		,noise_height : 1
@@ -48,9 +50,10 @@ materials = {
 		}
 	}
 	
-	,dirt : 
+	,3 : 
 	{
-		thickness: 50
+		name : 'dirt'
+		,thickness: 50
 		,minOffset : 45
 		,maxOffset : 100
 		
@@ -58,7 +61,7 @@ materials = {
 		,plateau_factor : 10
 		,smoothness : 0.8
 		
-		,previousMaterial : "mud"
+		,dependency : 2
 		
 		,noise_factor : 0.7
 		,noise_height : 1
@@ -71,9 +74,10 @@ materials = {
 			,spreadOffset : 150
 		}
 	}
-	,stone :
+	,4 :
 	{
-		thickness: 120
+		name : 'stone'
+		,thickness: 120
 		,minOffset : 50
 		,maxOffset : 50
 		
@@ -81,7 +85,7 @@ materials = {
 		,plateau_factor : 5
 		,smoothness : 0
 		
-		,previousMaterial : "dirt"
+		,dependency : 3
 		
 		,noise_factor : 0.7
 		,noise_height : 1
@@ -94,9 +98,10 @@ materials = {
 			,spreadOffset : 200
 		}
 	}
-	,darkstone :
+	,5 :
 	{
-		thickness: 250
+		name : 'darkstone'
+		,thickness: 250
 		,minOffset : 0
 		,maxOffset : 0
 		
@@ -104,7 +109,7 @@ materials = {
 		,plateau_factor : 1
 		,smoothness : 0.5
 		
-		,previousMaterial : "stone"
+		,dependency : 4
 		
 		,noise_factor : 0.5
 		,noise_height : 1
@@ -117,9 +122,10 @@ materials = {
 			,spreadOffset : 250
 		}
 	}
-	,granit :
+	,6 :
 	{
-		thickness: 1200
+		name : 'granit'
+		,thickness: 1200
 		,minOffset : 0
 		,maxOffset : 0
 		
@@ -127,7 +133,7 @@ materials = {
 		,plateau_factor : 0
 		,smoothness : 0
 		
-		,previousMaterial : "darkstone"
+		,dependency : 5
 		
 		,noise_factor : 0
 		,noise_height : 0
@@ -216,25 +222,11 @@ function generateMap()
 	// définition de la hauteur initiale de chaque materiau ( colonne de gauche )
 	generateMaterialInitHeight();
 	
-	// pour chaque colonne	
-	for(x = 0; x < mapWidth; x++)
-	{
-		mapBinary[x] = new Array();
-		
-		// calcul de la hauteur des différents matériaux
-		generateMaterialsHeight();
-		
-		// on place dans un buffer la hauteur calculée, pour la prochaine itération
-		oldParentMaterialsHeight = parentMaterialsHeight;
-		
-		// on attribue le matériau à chaque pixel en fonction de la hauteur des différents materiaux calculés
-		setColumnMaterial(x);
-	}
-	
-	
+	// 1ere itération : hauteur des matériaux
+	generateMaterialHeightByColumn();
 	
 	// 2eme itération : veines de matériaux
-	generateLodes();
+	 generateLodes();
 	
 	// 3eme itération : caves
 	generateCaves();
@@ -246,6 +238,29 @@ function generateMap()
 
 	getStats(end - start);
 }
+
+
+
+
+
+function generateMaterialHeightByColumn()
+{
+	// pour chaque colonne	
+	for(x = 0; x < mapWidth; x++)
+	{
+		mapBinary[x] = new Object();
+		
+		// calcul de la hauteur des différents matériaux
+		generateMaterialsHeight();
+		
+		// on place dans un buffer la hauteur calculée, pour la prochaine itération
+		oldParentMaterialsHeight = parentMaterialsHeight;
+		
+		// on attribue le matériau à chaque pixel en fonction de la hauteur des différents materiaux calculés
+		setColumnMaterial(x);
+	}
+}
+
 
 // calcule la hauteur initiale des matériaux sur la 1ere colonne
 function generateMaterialInitHeight()
@@ -269,7 +284,7 @@ function generateMaterialsHeight()
 		mat = materials[m];
 		
 		// on récupère la hauteur précédente afin de garder une continuité dans le paysage
-		parentMaterialsHeight[m] = getParentMaterialsHeight(m, newMaterialsHeight);
+		parentMaterialsHeight[m] = getDependencyHeight(m, newMaterialsHeight);
 		 
 		// si le materiau doit changer de taille
 		if(mat.smoothness == 0 || Math.random() > mat.smoothness || oldParentMaterialsHeight[m] == undefined )
@@ -292,9 +307,9 @@ function generateMaterialsHeight()
 
 
 // fonction récursive qui retourne la hauteur des matériaux parents 
-function getParentMaterialsHeight(m, newMaterialsHeight)
+function getDependencyHeight(m, newMaterialsHeight)
 {
-	return ( materials[m].previousMaterial != false ? newMaterialsHeight[materials[m].previousMaterial] + getParentMaterialsHeight(materials[m].previousMaterial, newMaterialsHeight) : 0 );
+	return ( materials[m].dependency != false ? newMaterialsHeight[materials[m].dependency] + getDependencyHeight(materials[m].dependency, newMaterialsHeight) : 0 );
 }
 
 
@@ -327,54 +342,60 @@ function generateLodes()
 	for(m in materials)
 	{
 		// on détermine le nombre de veines à placer sur la map
-		var lodeNumber = Math.round(materials[m].lodes.amountPercent * mapHeight);
+		var lodeNumber = Math.round(materials[m].lodes.amountPercent * mapHeight * 2);
 		if(!lodeNumber) continue;
 		
-		// on détermine la hauteur moyenne du materiau
-		var averageY = getParentMaterialsHeight(m, initialMaterialsHeight);
+		// on détermine une hauteur moyenne du materiau
+		var averageY = getDependencyHeight(m, initialMaterialsHeight);
 		
 		// pour chaque veine
 		for(i = 0; i <= lodeNumber; i++)
 		{
+			noise.seed(Math.random());
+			
 			// on détermine une position de départ en fonction de la largeur de la map
 			lodeX = Math.round(Math.random() * mapWidth + 1);
 			// on détermine une position de départ en fonction de la hauteur de la couche et du coefficient de spread
 			lodeY = averageY + (Math.random() > 0.2 ? 1 : -1 ) * Math.round( Math.random() * materials[m].lodes.spreadOffset / 2 + 1);
 			
-			// algo a déterminer pour faire une poche réaliste
-			// lineLengthX = new Array();
-			// lineLengthY = new Array();
+			squareSize = Math.round(materials[m].lodes.size / 2);
 			
-			squareSize = Math.round(materials[m].lodes.size);
+			iXMin = lodeX - squareSize;
+			iXMax = lodeX + squareSize;
 			
-			for(iX = -squareSize; iX <= squareSize; iX++)
+			iYMin = lodeY - squareSize;
+			iYMax = lodeY + squareSize;
+			
+			for(iX = iXMin; iX <= iXMax; iX++)
 			{
-				if (iX % mapWidth  == 0) 
-				{
-					noise.seed(Math.random());
-				}
-				
-				for(iY = -squareSize; iY <= squareSize; iY++)
+				for(iY = iYMin; iY <= iYMax; iY++)
 				{
 					// out of bounds
-					if(mapBinary[lodeX + iX] == undefined)
+					if(mapBinary[iX] == undefined)
 					{
 						continue;
 					}
 					
 					// out of bounds ou dans le ciel
-					if(mapBinary[lodeX + iX][lodeY + iY] == undefined)
+					if(mapBinary[iX][iY] == undefined)
 					{
 						continue;
 					}
 					
 					// on force une couche de végétation en haut //
-					if(mapBinary[lodeX + iX][lodeY + iY] == "grass")
+					if(mapBinary[iX][iY] == m)
+					{
+						continue;
+					}
+
+					// on force une couche de végétation en haut //
+					if(mapBinary[iX][iY] == 1)
 					{
 						continue;
 					}
 					
-					var active = Math.abs(noise.perlin2(iX / 20, iY / 20 ));
+					
+					var active = Math.abs(noise.perlin2((iX - lodeX) / 13, (iY - lodeY) / 13 ));
 					active = (active > 0.50 ? 1 : 0);
 					
 					if(!active)
@@ -382,7 +403,7 @@ function generateLodes()
 						continue;
 					};
 					
-					mapBinary[lodeX + iX][lodeY + iY] = m;
+					mapBinary[iX][iY] = m;
 				}
 			}
 		}
@@ -392,11 +413,15 @@ function generateLodes()
 function generateCaves()
 {
 	noise.seed(Math.random());
-	for (var x = 0; x < mapWidth; x++) 
+			
+	for (x = 0; x < mapWidth; x++) 
 	{
-		for (var y = 0; y < mapHeight; y++) 
+		if(mapBinary[x] == undefined) continue;
+		
+		for (y = 0; y < mapHeight; y++) 
 		{
 			if(mapBinary[x][y] == undefined) continue;
+			if(mapBinary[x][y] == 1) continue; // grass security
 			
 			var value = Math.abs(noise.perlin2(x / 20, y / 20 ));
 			
@@ -405,35 +430,21 @@ function generateCaves()
 			offset = Math.max(0,offset);
 			value = (value < offset ? 1 : 0);
 			
+			if(!value) continue;
 			
 			var offset =   (y-400) / 500  * 0.15 + 0.15;
 			offset = Math.min(0.30,offset);
 			offset = Math.max(0.15,offset);
 			
-			
 			var value2 = Math.abs(noise.perlin2(y / 50, x / 50 ));
 			value2 = (value2 >= offset ? 1 : 0);
 			
+			if(!value2) continue;
 			
-			var value_final = value && value2;
-			
-			if(value_final) delete mapBinary[x][y];
+			delete mapBinary[x][y];
 		}
 	}
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -449,6 +460,8 @@ function drawMap()
 	// pour chaque colonne 
 	for(i = 0; i < mapWidth; i++)
 	{	
+		if(mapBinary[i] == undefined) continue;
+		
 		// pour chaque ligne 
 		for(j = 0; j < mapHeight; j++)
 		{
@@ -509,7 +522,7 @@ function getStats(renderTime)
 
 	for(m in stats)
 	{
-		c.strokeText(m + ' : ' + Math.round(stats[m] / 10) / 100 + 'k', 5, 10 + lineHeight*offset);
+		c.strokeText(materials[m].name + ' : ' + Math.round(stats[m] / 10) / 100 + 'k', 5, 10 + lineHeight*offset);
 		offset++;
 	}
 	c.strokeText(renderTime + 'ms', 5, 10 + lineHeight*offset);
@@ -518,7 +531,7 @@ function getStats(renderTime)
 	for(m in stats)
 	{
 		c.fillStyle = rgbToHex( materials[m].rgb.r, materials[m].rgb.g, materials[m].rgb.b);
-		c.fillText(m + ' : ' + Math.round(stats[m] / 10) / 100 + 'k', 5, 10 + lineHeight*offset);
+		c.fillText(materials[m].name + ' : ' + Math.round(stats[m] / 10) / 100 + 'k', 5, 10 + lineHeight*offset);
 		offset++;
 	}
 	c.fillText(renderTime + 'ms', 5, 10 + lineHeight*offset);
